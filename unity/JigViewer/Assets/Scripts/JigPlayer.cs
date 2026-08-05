@@ -36,6 +36,16 @@ namespace Jig
 
         public void Bind(LoadedJig jig)
         {
+            // A rebind (picker switching jigs) leaves the previous tween running against
+            // transforms that are about to be destroyed. TweenTo null-guards them so it will not
+            // throw, but it keeps writing for up to `duration` seconds and would then stomp the
+            // new jig's step 0.
+            if (m_Tween != null)
+            {
+                StopCoroutine(m_Tween);
+                m_Tween = null;
+            }
+
             m_Scene = jig.Scene;
             m_Root = jig.Model.transform;
             m_Root.localScale = Vector3.one * m_Scene.scale;

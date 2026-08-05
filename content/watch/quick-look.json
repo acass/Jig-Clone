@@ -1,0 +1,41 @@
+{
+  "id": "chronograph-quick-look",
+  "title": "Watch: Quick Look",
+  "model": "ChronographWatch.glb",
+  "scale": 0.035,
+  "steps": [
+    {
+      "caption": "Three parts, three seconds.",
+      "duration": 0.5,
+      "nodes": [],
+      "labels": [
+        { "anchor": "Bezel Frame", "text": "Case", "offset": [2.6, 1.4, 0] }
+      ]
+    },
+    {
+      "caption": "Everything above the dial comes off together.",
+      "duration": 0.7,
+      "nodes": [
+        { "path": "Glass Face", "move": [0, 0, -4.0] },
+        { "path": "Bezel Frame", "move": [0, 0, -3.0] },
+        { "path": "Button Plastic", "move": [0, 0, -3.0] }
+      ],
+      "labels": [
+        { "anchor": "Glass Face", "text": "Crystal and bezel", "offset": [2.6, 0.8, 0] }
+      ]
+    },
+    {
+      "caption": "Hands, dial, case back.",
+      "duration": 0.9,
+      "nodes": [
+        { "path": "Hands", "move": [0, 0, -1.8] },
+        { "path": "Watch Face", "move": [0, 0, -0.9] },
+        { "path": "Backplate Khronos", "move": [0, 0, 2.4] }
+      ],
+      "labels": [
+        { "anchor": "Hands", "text": "Hands", "offset": [2.4, 0.4, 0] },
+        { "anchor": "Backplate Khronos", "text": "Case back", "offset": [2.6, -1.0, 0] }
+      ]
+    }
+  ]
+}

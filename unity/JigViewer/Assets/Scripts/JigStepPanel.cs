@@ -20,8 +20,9 @@ namespace Jig
 
         readonly List<Transform> m_Dots = new List<Transform>();
 
-        static readonly Color Idle = new Color(1f, 1f, 1f, 0.35f);
+        static readonly Color Idle = new Color(0.45f, 0.45f, 0.50f, 1f);
         static readonly Color Active = Color.white;
+        static readonly Color ButtonColor = new Color(0.18f, 0.18f, 0.22f, 1f);
 
         public static JigStepPanel Create(Transform parent, JigPlayer player, Vector3 localOffset)
         {
@@ -41,10 +42,10 @@ namespace Jig
 
         void Build()
         {
-            m_Caption = MakeText("caption", new Vector3(0f, 0.10f, 0f), 0.05f);
+            m_Caption = MakeText("caption", new Vector3(0f, 0.10f, 0f), 0.025f);
             m_Caption.alignment = TextAlignmentOptions.Center;
 
-            m_Counter = MakeText("counter", new Vector3(0f, -0.10f, 0f), 0.035f);
+            m_Counter = MakeText("counter", new Vector3(0f, -0.10f, 0f), 0.0175f);
             m_Counter.alignment = TextAlignmentOptions.Center;
             m_Counter.color = Idle;
 
@@ -62,6 +63,7 @@ namespace Jig
                 dot.name = $"dot{i}";
                 Destroy(dot.GetComponent<Collider>());
                 dot.transform.SetParent(transform, false);
+                JigUi.Tint(dot, Idle);
 
                 // Centre the row on the panel regardless of step count.
                 var x = (i - (m_Player.StepCount - 1) / 2f) * 0.045f;
@@ -96,11 +98,12 @@ namespace Jig
             go.transform.SetParent(transform, false);
             go.transform.localPosition = localPos;
             go.transform.localScale = new Vector3(0.07f, 0.07f, 0.02f);
+            JigUi.Tint(go, ButtonColor);
 
             var interactable = go.AddComponent<XRSimpleInteractable>();
             interactable.selectEntered.AddListener(_ => onPress());
 
-            var label = MakeText($"{name}-glyph", localPos + new Vector3(0f, 0f, -0.02f), 0.04f);
+            var label = MakeText($"{name}-glyph", localPos + new Vector3(0f, 0f, -0.02f), 0.02f);
             label.text = glyph;
         }
 

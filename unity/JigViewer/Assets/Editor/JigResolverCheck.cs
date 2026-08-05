@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using Jig;
 using Newtonsoft.Json;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 /// Self-check for JigStepResolver's inherit-if-omitted rule - the one piece of real logic in
 /// the slice, and the one most likely to break silently. Run headlessly:
@@ -24,6 +26,7 @@ public static class JigResolverCheck
         EarlierStepsAreNotMutated();
         BadDataIsSkippedNotThrown();
         RealSceneFileParses();
+        SceneIsWiredForInput();
 
         if (s_Failures > 0)
         {
@@ -140,6 +143,28 @@ public static class JigResolverCheck
             "crystal should still be lifted at the final step");
         Check(last.ContainsKey("Backplate Khronos"),
             "final step should have moved the case back");
+    }
+
+    /// The scene shipped for months with no interactor in it, which made every button and the
+    /// grab silently unpressable while everything still rendered correctly. That class of defect
+    /// is invisible in the editor and expensive to find on a headset, so gate it here.
+    static void SceneIsWiredForInput()
+    {
+        EditorSceneManager.OpenScene("Assets/Scenes/Jig.unity", OpenSceneMode.Single);
+
+        Check(UnityEngine.Object.FindFirstObjectByType<XRRayInteractor>() != null,
+            "no interactor in the scene - step buttons, grab and the picker are all unpressable");
+
+        var placement = UnityEngine.Object.FindFirstObjectByType<JigPlacement>();
+        Check(placement != null, "no JigPlacement in scene");
+        if (placement == null) return;
+
+        Check(placement.anchorManager != null,
+            "JigPlacement.anchorManager unassigned - placement cannot anchor and will drift");
+        Check(placement.rayInteractor != null,
+            "JigPlacement.rayInteractor unassigned - re-placement cannot cast a ray");
+        Check(placement.placeAction.action != null,
+            "JigPlacement.placeAction unassigned - nothing triggers re-placement");
     }
 
     static JigScene Parse(string json) => JsonConvert.DeserializeObject<JigScene>(json);

@@ -4,6 +4,11 @@
       "id": "chronograph-teardown",
       "title": "Chronograph Watch",
       "scene": "watch/scene.json"
+    },
+    {
+      "id": "chronograph-quick-look",
+      "title": "Watch: Quick Look",
+      "scene": "watch/quick-look.json"
     }
   ]
 }

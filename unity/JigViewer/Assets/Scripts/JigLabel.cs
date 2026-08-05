@@ -28,7 +28,7 @@ namespace Jig
             textGo.transform.SetParent(go.transform, false);
             label.m_Text = textGo.AddComponent<TextMeshPro>();
             label.m_Text.text = text;
-            label.m_Text.fontSize = 2.5f;
+            label.m_Text.fontSize = 1.25f;
             label.m_Text.alignment = TextAlignmentOptions.Center;
             label.m_Text.color = Color.white;
 
