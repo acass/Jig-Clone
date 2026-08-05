@@ -1,0 +1,9 @@
+{
+  "jigs": [
+    {
+      "id": "chronograph-teardown",
+      "title": "Chronograph Watch",
+      "scene": "watch/scene.json"
+    }
+  ]
+}

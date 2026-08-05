@@ -1,0 +1,14 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Jig.unity
+    guid: 150938caf3d7143799f3e5eeab78d1c3
+  m_configObjects:
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: c48796a562862449ea766849c3f6e749, type: 2}
+    com.unity.xr.openxr.settings4: {fileID: 11400000, guid: deb3df46bee7a41b6942ce72735af25b, type: 2}
+  m_UseUCBPForAssetBundles: 0

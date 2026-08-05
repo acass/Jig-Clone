@@ -1,0 +1,68 @@
+{
+  "id": "chronograph-teardown",
+  "title": "Chronograph Watch",
+  "model": "ChronographWatch.glb",
+  "scale": 0.035,
+  "steps": [
+    {
+      "caption": "A chronograph, from the outside in.",
+      "duration": 0.6,
+      "nodes": [],
+      "labels": [
+        { "anchor": "Bezel Frame", "text": "Chronograph", "offset": [2.6, 1.4, 0] }
+      ]
+    },
+    {
+      "caption": "The crystal lifts away first.",
+      "duration": 0.8,
+      "nodes": [
+        { "path": "Glass Face", "move": [0, 0, -3.5] }
+      ],
+      "labels": [
+        { "anchor": "Glass Face", "text": "Sapphire crystal", "offset": [2.6, 0.8, 0] }
+      ]
+    },
+    {
+      "caption": "The bezel frame unscrews from the case.",
+      "duration": 0.8,
+      "nodes": [
+        { "path": "Bezel Frame", "move": [0, 0, -2.2] },
+        { "path": "Button Plastic", "move": [0, 0, -2.2] }
+      ],
+      "labels": [
+        { "anchor": "Bezel Frame", "text": "Bezel frame", "offset": [2.6, 0.8, 0] }
+      ]
+    },
+    {
+      "caption": "Underneath sit the four hands.",
+      "duration": 0.8,
+      "nodes": [
+        { "path": "Hands", "move": [0, 0, -1.2] }
+      ],
+      "labels": [
+        { "anchor": "Hands/Hand Seconds", "text": "Sweep seconds hand", "offset": [2.4, 0.4, 0] },
+        { "anchor": "Hands/Hand Hours", "text": "Hour and minute hands", "offset": [-2.8, -0.6, 0] }
+      ]
+    },
+    {
+      "caption": "The dial lifts off the movement.",
+      "duration": 0.8,
+      "nodes": [
+        { "path": "Watch Face", "move": [0, 0, -0.6] }
+      ],
+      "labels": [
+        { "anchor": "Watch Face", "text": "Printed dial", "offset": [2.6, 0.2, 0] }
+      ]
+    },
+    {
+      "caption": "And the case back closes it all in.",
+      "duration": 0.9,
+      "nodes": [
+        { "path": "Backplate Khronos", "move": [0, 0, 2.0] }
+      ],
+      "labels": [
+        { "anchor": "Backplate Khronos", "text": "Screw-down case back", "offset": [2.6, -1.0, 0] }
+      ]
+    }
+  ]
+}
