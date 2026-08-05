@@ -153,6 +153,7 @@ google-services-desktop.json
 
 .env
 .env.local
+graphify-out
 
 ############################################
 # Don't ignore these!
