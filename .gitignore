@@ -161,3 +161,5 @@ graphify-out
 #!Assets/
 #!Packages/
 #!ProjectSettings/
+# Unity build scratch - churns on every build
+.utmp/
