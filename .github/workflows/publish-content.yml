@@ -43,11 +43,11 @@ jobs:
           node tools/validate.mjs
           node tools/test_format.mjs
 
-      # enablement turns Pages on for the repo the first time this runs, so a fresh
-      # clone does not need someone to click through Settings before publishing works.
+      # Pages must already be enabled with build_type=workflow. The `enablement`
+      # option cannot do it: creating a Pages site needs admin, which the workflow's
+      # GITHUB_TOKEN does not have ("Resource not accessible by integration").
+      #   gh api -X POST repos/<owner>/<repo>/pages -f build_type=workflow
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: content
