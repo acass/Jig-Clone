@@ -22,8 +22,9 @@ namespace Jig
     /// only property we are trying to prove.
     public class JigLoader : MonoBehaviour
     {
-        [Tooltip("URL of index.json. Point this at ./serve.sh output, or the GitHub Pages URL.")]
-        public string manifestUrl = "http://192.168.86.39:8000/index.json";
+        [Tooltip("URL of index.json. Defaults to the published GitHub Pages content, which works " +
+                 "from any network. Point it at ./serve.sh output to author against the LAN instead.")]
+        public string manifestUrl = "https://acass.github.io/Jig-Clone/index.json";
 
         [Tooltip("Ignore the on-disk cache and re-download every launch. Leave on while authoring.")]
         public bool forceRefresh = true;

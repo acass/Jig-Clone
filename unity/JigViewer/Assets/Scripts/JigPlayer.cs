@@ -25,6 +25,10 @@ namespace Jig
         // alias when unique). Needed because the resolved table may be keyed by either.
         readonly Dictionary<Transform, List<string>> m_Aliases = new Dictionary<Transform, List<string>>();
 
+        // Transforms the scene names explicitly, by any of their paths. SetVisible refuses to
+        // descend into these so a group can never take an authored part down with it.
+        readonly HashSet<Transform> m_Authored = new HashSet<Transform>();
+
         Coroutine m_Tween;
 
         public int StepCount => m_Resolved?.Count ?? 0;
@@ -53,9 +57,16 @@ namespace Jig
             m_Nodes.Clear();
             m_Rest.Clear();
             m_Aliases.Clear();
+            m_Authored.Clear();
             IndexHierarchy(m_Root);
 
             m_Resolved = JigStepResolver.Resolve(m_Scene, w => Debug.LogWarning($"[jig] {w}"));
+
+            m_Authored.Clear();
+            foreach (var step in m_Resolved)
+                foreach (var path in step.Keys)
+                    if (m_Nodes.TryGetValue(path, out var authored))
+                        m_Authored.Add(authored);
 
             // Warn once, at load, for paths that will never resolve - far easier to debug than
             // silently motionless geometry on a headset.
@@ -144,12 +155,24 @@ namespace Jig
             m_Tween = null;
         }
 
-        static void SetVisible(Transform t, bool visible)
+        /// Shows or hides a part, including the sub-objects that are not parts in their own
+        /// right.
+        ///
+        /// This used to touch only GetComponents<Renderer>() on the node itself. That is wrong
+        /// for a multi-primitive mesh: glTFast keeps primitive 0 on the node and gives every
+        /// ADDITIONAL primitive its own child GameObject, so `visible: false` on a 2-primitive
+        /// part hid half of it and left the rest floating.
+        ///
+        /// Descent stops at any transform the scene authors separately, which preserves the
+        /// original rule that hiding a group must not silently take its named parts with it.
+        void SetVisible(Transform t, bool visible)
         {
-            // Only this node's own renderers, not its children's - hiding a group should not
-            // silently take its parts with it.
             foreach (var r in t.GetComponents<Renderer>())
                 r.enabled = visible;
+
+            foreach (Transform child in t)
+                if (!m_Authored.Contains(child))
+                    SetVisible(child, visible);
         }
 
         void IndexHierarchy(Transform root)
@@ -197,5 +220,17 @@ namespace Jig
         }
 
         public bool TryGetNode(string path, out Transform node) => m_Nodes.TryGetValue(path, out node);
+
+        /// Where `node` will be once the current step has finished animating.
+        ///
+        /// StepChanged fires as the tween STARTS, so anything positioned from
+        /// node.localPosition at that moment is placed where the part is coming FROM. Labels
+        /// were being pinned to the previous step's position for exactly that reason.
+        public Vector3 ResolvedLocalPosition(Transform node)
+        {
+            if (node == null || !m_Rest.TryGetValue(node, out var rest)) return Vector3.zero;
+            if (m_Resolved == null || CurrentStep < 0 || CurrentStep >= m_Resolved.Count) return rest.pos;
+            return rest.pos + StateFor(node, m_Resolved[CurrentStep]).Move;
+        }
     }
 }

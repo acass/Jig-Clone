@@ -28,6 +28,7 @@ namespace Jig
         public bool IsLoading { get; private set; }
 
         readonly List<JigLabel> m_Labels = new List<JigLabel>();
+        readonly List<JigCallout> m_Callouts = new List<JigCallout>();
 
         async void Start()
         {
@@ -151,8 +152,9 @@ namespace Jig
                 m_Panel = null;
             }
 
-            // The label GameObjects are parented inside the model and die with it.
+            // The label and callout GameObjects are parented inside the model and die with it.
             m_Labels.Clear();
+            m_Callouts.Clear();
 
             if (m_Jig?.Model != null) Destroy(m_Jig.Model);
             m_Jig = null;
@@ -238,9 +240,19 @@ namespace Jig
                 if (l != null) Destroy(l.gameObject);
             m_Labels.Clear();
 
+            foreach (var c in m_Callouts)
+                if (c != null) Destroy(c.gameObject);
+            m_Callouts.Clear();
+
             if (m_Jig?.Scene?.steps == null || index < 0 || index >= m_Jig.Scene.steps.Count) return;
 
             var step = m_Jig.Scene.steps[index];
+            BuildLabels(step);
+            BuildCallouts(step);
+        }
+
+        void BuildLabels(JigStep step)
+        {
             if (step.labels == null) return;
 
             foreach (var spec in step.labels)
@@ -253,15 +265,45 @@ namespace Jig
                     continue;
                 }
 
-                var offset = spec.offset != null && spec.offset.Length == 3
-                    ? new Vector3(spec.offset[0], spec.offset[1], spec.offset[2])
-                    : Vector3.zero;
+                // Position against where the anchor is GOING, not where it currently is. This
+                // runs as the tween starts, so anchor.localPosition is still the previous
+                // step's value and the label would sit where the part came from.
+                var at = m_Player.ResolvedLocalPosition(anchor) + ToVector3(spec.offset);
 
-                var label = JigLabel.Create(anchor.parent, anchor, spec.text, offset);
+                var label = JigLabel.Create(anchor.parent, anchor, spec.text, at);
                 label.FadeIn();
                 m_Labels.Add(label);
             }
         }
+
+        void BuildCallouts(JigStep step)
+        {
+            if (step.callouts == null) return;
+
+            foreach (var spec in step.callouts)
+            {
+                if (spec == null) continue;
+
+                // The anchor is optional. A callout with none - or with one that does not
+                // resolve - floats beside the model instead of failing, because remote content
+                // must never hard-fail the viewer.
+                Transform anchor = null;
+                if (!string.IsNullOrEmpty(spec.anchor) && !m_Player.TryGetNode(spec.anchor, out anchor))
+                    Debug.LogWarning($"[jig] callout anchor '{spec.anchor}' matches no node - floating instead.");
+
+                var parent = anchor != null ? anchor.parent : m_Jig.Model.transform;
+                var at = anchor != null
+                    ? m_Player.ResolvedLocalPosition(anchor) + ToVector3(spec.offset)
+                    : ToVector3(spec.offset);
+
+                var callout = JigCallout.Create(parent, anchor, spec, at);
+                callout.FadeIn();
+                m_Callouts.Add(callout);
+            }
+        }
+
+        static Vector3 ToVector3(float[] v) =>
+            v != null && v.Length == 3 ? new Vector3(v[0], v[1], v[2]) : Vector3.zero;
 
         // ponytail: no controller shortcut for step navigation. The panel buttons cover it now
         // that the scene actually has an interactor to press them with (see JigSceneFix).

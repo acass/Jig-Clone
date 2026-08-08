@@ -40,8 +40,8 @@
         { "path": "Hands", "move": [0, 0, -1.2] }
       ],
       "labels": [
-        { "anchor": "Hands/Hand Seconds", "text": "Sweep seconds hand", "offset": [2.4, 0.4, 0] },
-        { "anchor": "Hands/Hand Hours", "text": "Hour and minute hands", "offset": [-2.8, -0.6, 0] }
+        { "anchor": "Scene/Hands/Hand Seconds", "text": "Sweep seconds hand", "offset": [2.4, 0.4, 0] },
+        { "anchor": "Scene/Hands/Hand Hours", "text": "Hour and minute hands", "offset": [-2.8, -0.6, 0] }
       ]
     },
     {
@@ -58,10 +58,10 @@
       "caption": "And the case back closes it all in.",
       "duration": 0.9,
       "nodes": [
-        { "path": "Backplate Khronos", "move": [0, 0, 2.0] }
+        { "path": "Backplate Khronos", "move": [0, 0, 2] }
       ],
       "labels": [
-        { "anchor": "Backplate Khronos", "text": "Screw-down case back", "offset": [2.6, -1.0, 0] }
+        { "anchor": "Backplate Khronos", "text": "Screw-down case back", "offset": [2.6, -1, 0] }
       ]
     }
   ]

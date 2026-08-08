@@ -14,11 +14,14 @@ namespace Jig
         Transform m_Camera;
         CanvasGroupFade m_Fade;
 
-        public static JigLabel Create(Transform parent, Transform anchor, string text, Vector3 localOffset)
+        /// `localPosition` is already resolved against the anchor by the caller - JigApp adds
+        /// the authored offset to where the anchor will BE at the end of the step, which is not
+        /// the same as where it is when this runs.
+        public static JigLabel Create(Transform parent, Transform anchor, string text, Vector3 localPosition)
         {
             var go = new GameObject($"label:{text}");
             go.transform.SetParent(parent, false);
-            go.transform.localPosition = anchor.localPosition + localOffset;
+            go.transform.localPosition = localPosition;
 
             var label = go.AddComponent<JigLabel>();
             label.m_Anchor = anchor;
@@ -74,14 +77,18 @@ namespace Jig
     /// do not share a fade mechanism, so this drives both.
     public class CanvasGroupFade : MonoBehaviour
     {
-        TextMeshPro m_Text;
+        TextMeshPro[] m_Texts = System.Array.Empty<TextMeshPro>();
         LineRenderer m_Line;
         float m_Alpha;
         float m_Target;
 
-        public void Bind(TextMeshPro text, LineRenderer line)
+        public void Bind(TextMeshPro text, LineRenderer line) => Bind(line, text);
+
+        /// A callout fades a heading and a body together; a label has one text and a line.
+        /// Either way one component owns the alpha, so the parts cannot drift apart.
+        public void Bind(LineRenderer line, params TextMeshPro[] texts)
         {
-            m_Text = text;
+            m_Texts = texts ?? System.Array.Empty<TextMeshPro>();
             m_Line = line;
             Apply(0f);
         }
@@ -98,7 +105,8 @@ namespace Jig
         void Apply(float a)
         {
             m_Alpha = a;
-            if (m_Text != null) m_Text.alpha = a;
+            foreach (var t in m_Texts)
+                if (t != null) t.alpha = a;
             if (m_Line != null)
             {
                 var c = m_Line.startColor;

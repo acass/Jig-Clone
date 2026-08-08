@@ -1,0 +1,51 @@
+# Publishes ./content to GitHub Pages so the headset can fetch Jigs from anywhere,
+# not just the LAN. Only content/ is published - the Unity project stays private to
+# the repo and is not served.
+#
+# After the first successful run, set Settings > Pages > Source to "GitHub Actions",
+# then point JigLoader.manifestUrl at:
+#   https://<owner>.github.io/<repo>/index.json
+name: publish-content
+
+on:
+  push:
+    branches: [main]
+    paths: ["content/**", ".github/workflows/publish-content.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A queued publish should not overtake one already running.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Never publish content the viewer cannot resolve. This is the same check that
+      # caught two labels silently not rendering on the headset.
+      - name: Validate content
+        run: |
+          node tools/validate.mjs
+          node tools/test_format.mjs
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: content
+      - id: deploy
+        uses: actions/deploy-pages@v4

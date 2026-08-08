@@ -26,6 +26,7 @@ public static class JigResolverCheck
         EarlierStepsAreNotMutated();
         BadDataIsSkippedNotThrown();
         RealSceneFileParses();
+        CalloutsAreOptionalAndTolerant();
         SceneIsWiredForInput();
 
         if (s_Failures > 0)
@@ -36,6 +37,46 @@ public static class JigResolverCheck
 
         Debug.Log("[check] all resolver checks passed");
         EditorApplication.Exit(0);
+    }
+
+    static void CalloutsAreOptionalAndTolerant()
+    {
+        // Content authored before callouts existed has no `callouts` key at all. It must
+        // deserialize to an empty list, not null, or every pre-callout jig throws on the
+        // first step change.
+        var old = Parse(@"{
+            ""steps"": [
+                { ""caption"": ""before callouts"", ""nodes"": [], ""labels"": [] }
+            ]
+        }");
+        Check(old.steps[0].callouts != null, "a scene with no 'callouts' key must give an empty list, not null");
+        Check(old.steps[0].callouts.Count == 0, "an absent 'callouts' key must not invent entries");
+
+        var scene = Parse(@"{
+            ""steps"": [
+                { ""callouts"": [
+                    { ""title"": ""Anchored"", ""body"": ""Points at a part."", ""anchor"": ""A"", ""offset"": [1,2,3] },
+                    { ""title"": ""Floating"", ""body"": ""No anchor at all."" },
+                    { ""body"": ""Body only, no title."", ""width"": 4 }
+                ] }
+            ]
+        }");
+
+        var callouts = scene.steps[0].callouts;
+        Check(callouts.Count == 3, "expected 3 callouts");
+        Check(callouts[0].anchor == "A", "anchored callout lost its anchor");
+        Check(callouts[0].offset != null && callouts[0].offset.Length == 3, "callout offset should survive parsing");
+        Check(callouts[1].anchor == null, "a callout without an anchor must stay unanchored, not default to something");
+        Check(callouts[2].title == null && callouts[2].body != null, "a body-only callout is legal");
+
+        // width has a non-zero default, because a zero-width panel is invisible and the
+        // author never wrote the field.
+        Check(callouts[1].width > 0f, "callout width must default to something drawable");
+        Check(Mathf.Approximately(callouts[2].width, 4f), "an authored callout width must win over the default");
+
+        // Steps carry labels and callouts independently.
+        Check(scene.steps[0].labels != null && scene.steps[0].labels.Count == 0,
+              "a step with callouts but no labels should still give an empty label list");
     }
 
     static void InheritsOmittedFields()
