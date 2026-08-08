@@ -2,9 +2,9 @@
 # not just the LAN. Only content/ is published - the Unity project stays private to
 # the repo and is not served.
 #
-# After the first successful run, set Settings > Pages > Source to "GitHub Actions",
-# then point JigLoader.manifestUrl at:
+# The first run enables Pages itself (see `enablement` below). Content then lives at:
 #   https://<owner>.github.io/<repo>/index.json
+# which is what JigLoader.manifestUrl points at.
 name: publish-content
 
 on:
@@ -34,7 +34,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       # Never publish content the viewer cannot resolve. This is the same check that
       # caught two labels silently not rendering on the headset.
@@ -43,7 +43,11 @@ jobs:
           node tools/validate.mjs
           node tools/test_format.mjs
 
+      # enablement turns Pages on for the repo the first time this runs, so a fresh
+      # clone does not need someone to click through Settings before publishing works.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: content
