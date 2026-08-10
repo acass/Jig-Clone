@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildNodeIndex, formatScene, resolveSteps } from "./editor/resolver.js";
+import { authoredNodes, buildNodeIndex, formatScene, resolveSteps, setVisibleDeep } from "./editor/resolver.js";
 import { parseGlbJson, unityNodeTree } from "./editor/glb.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -80,6 +80,51 @@ check("a single-primitive node keeps its bare-leaf alias", index.byPath.has("Gla
 check("a multi-primitive node has NO bare-leaf alias", index.byPath.has("Hand Seconds"), false);
 check("...and is reachable by full path", index.byPath.has("Scene/Hands/Hand Seconds"), true);
 check("names keep their spaces, unlike three.js", index.byPath.has("Glass_Face"), false);
+
+console.log("\nvisibility (JigPlayer.SetVisible)");
+
+// Stands in for the three.js objects the web viewer hangs off the proxy tree. Only
+// the two things setVisibleDeep looks at are modelled: whether an object draws, and
+// what its children are. The synthetic GameObjects glTFast makes for extra mesh
+// primitives get no proxy of their own - they are plain meshes under the node, which
+// is exactly why hiding only the node's own object leaves half a part on screen.
+function attachStubs(proxy) {
+  const own = { isMesh: true, visible: true, children: [] };
+  proxy.obj = own;
+  for (const child of proxy.children) {
+    if (child.nodeIndex == null && !child.isScene) own.children.push({ isMesh: true, visible: true, children: [] });
+    else own.children.push(attachStubs(child));
+  }
+  return own;
+}
+
+{
+  const scene = JSON.parse(readFileSync(join(CONTENT, "watch/scene.json"), "utf8"));
+  const index = buildNodeIndex(tree);   // the ChronographWatch tree built above
+  attachStubs(tree);
+
+  const authored = authoredNodes(resolveSteps(scene), index);
+  const seconds = index.byPath.get("Scene/Hands/Hand Seconds");
+
+  setVisibleDeep(seconds, false, authored);
+  check("a hidden node stops drawing", seconds.obj.visible, false);
+  check("...and so does its split-off second primitive",
+    seconds.obj.children.every((c) => c.visible === false), true);
+}
+
+{
+  // Hiding a group must not take a part the scene names separately with it - that
+  // rule is why setVisibleDeep needs the authored set at all.
+  const group = { name: "Group", nodeIndex: 1, children: [{ name: "Part", nodeIndex: 2, children: [] }] };
+  const root = { name: "", nodeIndex: null, children: [group] };
+  const index = buildNodeIndex(root);
+  attachStubs(root);
+
+  const authored = new Set([index.byPath.get("Part")]);
+  setVisibleDeep(index.byPath.get("Group"), false, authored);
+  check("hiding a group hides the group", index.byPath.get("Group").obj.visible, false);
+  check("...but not a part the scene authors separately", index.byPath.get("Part").obj.visible, true);
+}
 
 console.log(failures ? `\n${failures} failure(s)` : "\nall checks pass");
 process.exit(failures ? 1 : 0);

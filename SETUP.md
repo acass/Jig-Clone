@@ -12,12 +12,14 @@ content/            the Jig itself - served over HTTP, never bundled
   index.json        manifest listing available Jigs
   watch/scene.json  6-step chronograph teardown
   watch/*.glb       Khronos ChronographWatch sample asset
-serve.sh            dev server, prints the URLs for the app and the editor
+serve.sh            dev server, prints the URLs for the app, the viewer and the editor
 tools/
   serve.py          GET on the LAN, PUT from this machine only
   editor/           the authoring editor - open it in a browser
+                    resolver.js, glb.js and views.js are shared with the web viewer
+  viewer/           the web viewer - the same Jig by link, no app
   validate.mjs      checks content against the .glb before it reaches a headset
-unity/JigViewer/    the viewer
+unity/JigViewer/    the headset viewer
 ```
 
 ## Versions
@@ -99,6 +101,37 @@ Relaunch the app on the headset. The change is there. No rebuild.
 That is the property the whole slice exists to demonstrate — it is what separates a
 platform from a demo. `forceRefresh` on `JigLoader` is on by default so the disk cache
 never hides it while authoring.
+
+## The web viewer
+
+```bash
+./serve.sh                       # prints the viewer URL too
+open "http://127.0.0.1:8000/viewer/?jig=chronograph-teardown&step=3"
+```
+
+The same content the headset fetches, in a browser, with nothing to install — which
+is how a Jig gets shared with someone who does not own a Quest. It uses the editor's
+`resolver.js`, `glb.js` and `views.js`, so the step rules, the node paths and the
+callout layout are one implementation, not a second one that drifts.
+
+- `?jig=<id>&step=<n>` is the whole of its state, rewritten as you step, so a copied
+  link reopens exactly what was on screen. Steps are 1-based in the URL.
+- **Share** gives that link and an `<iframe>` snippet. The embed adds `ui=0`, which
+  drops the branding and the picker but keeps the step controls.
+- Published by the Pages workflow at `<pages-url>/viewer/`. `index.json` stays at the
+  root, so `JigLoader.manifestUrl` is unchanged and the APK does not care.
+
+Two deliberate differences from the headset:
+
+- **`rotate` is not applied.** It is authored in Unity's ZXY Euler order and the
+  mapping into three's is unverified, so the viewer shows a note instead of showing
+  the wrong thing — the same stance the editor takes. No shipped content authors it.
+- **No passthrough, no anchoring, no room.** It is a viewer on a grid, not AR.
+
+Only `resolver.js`, `glb.js`, `views.js` and `vendor/` are published from the editor
+directory — never `editor.js` or its page. The editor saves through a loopback-only
+PUT that does not exist on Pages, so publishing it would offer an authoring UI that
+cannot author.
 
 ## The scene format
 
@@ -182,6 +215,11 @@ node tools/test_format.mjs   # scene.json survives a save unchanged; resolver ru
 python3 tools/test_serve.py  # the dev server refuses writes from anything but this machine
 ```
 
+`test_format.mjs` also covers `setVisibleDeep`, the rule that makes `visible: false`
+work on a multi-primitive mesh without taking a separately-authored part down with
+it. Verified to actually fail: removing the descent produces
+`FAIL ...and so does its split-off second primitive` and exit 1.
+
 `test_format.mjs` exists because an earlier serialiser silently replaced every array in
 `scene.json` with a placeholder string. Saving is an overwrite, so a lossy serialiser
 destroys authored content — that check is the one that caught it.
@@ -224,9 +262,9 @@ wrong; Z is not converted at all.
 
 ## Not built
 
-Web viewer, iOS, accounts, analytics, narration audio, QR/deep-link entry, multi-user,
-SOC 2. Each sits on top of the scene format rather than changing it, which is why the
-format was settled first.
+Phone AR (WebXR on Android, USDZ Quick Look on iOS), accounts, analytics, narration
+audio, QR codes, multi-user, SOC 2. Each sits on top of the scene format rather than
+changing it, which is why the format was settled first.
 
 The authoring GUI now exists (`tools/editor/`), but it is single-user, local, and has no
 undo — git is the undo, so commit before a long authoring session. Rotation is not

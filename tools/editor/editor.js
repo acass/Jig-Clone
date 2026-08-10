@@ -14,6 +14,7 @@ import { OrbitControls } from "./vendor/OrbitControls.js";
 import { TransformControls } from "./vendor/TransformControls.js";
 import { buildNodeIndex, flipX, formatScene, resolveSteps } from "./resolver.js";
 import { parseGlbJson, unityNodeTree } from "./glb.js";
+import { buildCalloutViews, buildLabelViews, disposeViews, updateLeader } from "./views.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -87,10 +88,16 @@ resize();
 
 renderer.setAnimationLoop(() => {
   orbit.update();
-  for (const v of state.labelViews) updateLabelView(v);
-  for (const v of state.calloutViews) if (v.line) updateLabelView(v);
+  for (const v of state.labelViews) updateLeader(v, tintFor("label", v.i));
+  for (const v of state.calloutViews) updateLeader(v, tintFor("callout", v.i));
   renderer.render(scene3, camera);
 });
+
+/// The selected view's leader line is tinted, which is how you tell which label in
+/// a crowded step you are dragging.
+function tintFor(kind, i) {
+  return state.selected?.kind === kind && state.selected.i === i ? 0x6ea8fe : 0xffffff;
+}
 
 // -- status ----------------------------------------------------------------
 
@@ -269,162 +276,26 @@ function addNote(text, kind) {
 
 // -- labels ----------------------------------------------------------------
 
-function labelSprite(text) {
-  const pad = 16, font = 44;
-  const c = document.createElement("canvas");
-  let ctx = c.getContext("2d");
-  ctx.font = `${font}px sans-serif`;
-  c.width = Math.ceil(ctx.measureText(text).width) + pad * 2;
-  c.height = font + pad * 2;
-
-  ctx = c.getContext("2d");
-  ctx.font = `${font}px sans-serif`;
-  ctx.fillStyle = "rgba(20,22,27,.82)";
-  ctx.fillRect(0, 0, c.width, c.height);
-  ctx.fillStyle = "#fff";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, pad, c.height / 2);
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-  sprite.scale.set(c.width / c.height, 1, 1);
-  return sprite;
-}
-
-/// Draws a callout as the viewer will: a fixed-width panel with a bold heading over
-/// a wrapped body, and a leader line only when it is anchored.
-function calloutSprite(spec, widthWorld) {
-  const px = 512;
-  const scale = px / widthWorld;              // world units -> canvas pixels
-  const pad = px * 0.12;
-  const titleSize = px * 0.13, bodySize = px * 0.10;
-
-  const c = document.createElement("canvas");
-  let ctx = c.getContext("2d");
-
-  const wrap = (text, font) => {
-    ctx.font = font;
-    const out = [];
-    for (const para of (text || "").split("\n")) {
-      let line = "";
-      for (const word of para.split(/\s+/).filter(Boolean)) {
-        const next = line ? `${line} ${word}` : word;
-        if (ctx.measureText(next).width > px && line) { out.push(line); line = word; }
-        else line = next;
-      }
-      out.push(line);
-    }
-    return out.filter((l, i, a) => l || a.length === 1);
-  };
-
-  const titleFont = `bold ${titleSize}px sans-serif`;
-  const bodyFont = `${bodySize}px sans-serif`;
-  const titleLines = spec.title ? wrap(spec.title, titleFont) : [];
-  const bodyLines = spec.body ? wrap(spec.body, bodyFont) : [];
-
-  const gap = titleLines.length && bodyLines.length ? pad * 0.4 : 0;
-  const content = titleLines.length * titleSize * 1.25 + gap + bodyLines.length * bodySize * 1.35;
-
-  c.width = px + pad * 2;
-  c.height = content + pad * 2;
-
-  ctx = c.getContext("2d");
-  ctx.fillStyle = "rgba(23,26,33,.94)";
-  ctx.fillRect(0, 0, c.width, c.height);
-
-  ctx.fillStyle = "#fff";
-  ctx.textBaseline = "top";
-  let y = pad;
-  ctx.font = titleFont;
-  for (const l of titleLines) { ctx.fillText(l, pad, y); y += titleSize * 1.25; }
-  y += gap;
-  ctx.font = bodyFont;
-  ctx.fillStyle = "#d6d9e0";
-  for (const l of bodyLines) { ctx.fillText(l, pad, y); y += bodySize * 1.35; }
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-  sprite.scale.set(c.width / scale, c.height / scale, 1);
-  return sprite;
+/// The sprites themselves live in views.js, shared with the web viewer, so an
+/// author places a callout that a shared link renders identically.
+function rebuildLabelViews() {
+  disposeViews(state.labelViews);
+  state.labelViews = buildLabelViews({
+    specs: state.scene.steps[state.step].labels,
+    index: state.index,
+    container: state.container,
+    lineParent: scene3,
+  });
 }
 
 function rebuildCalloutViews() {
-  for (const v of state.calloutViews) {
-    v.group.parent?.remove(v.group);
-    v.line?.parent?.remove(v.line);
-  }
-  state.calloutViews = [];
-
-  (state.scene.steps[state.step].callouts ?? []).forEach((spec, i) => {
-    const anchor = spec.anchor ? state.index.byPath.get(spec.anchor)?.obj : null;
-    const parent = anchor ? anchor.parent : state.container;
-
-    const group = new THREE.Group();
-    group.add(calloutSprite(spec, spec.width > 0 ? spec.width : 6));
-    parent.add(group);
-
-    const base = anchor ? anchor.position : new THREE.Vector3();
-    group.position.copy(base).add(new THREE.Vector3(...flipX(spec.offset ?? [0, 0, 0])));
-
-    let line = null;
-    if (anchor) {
-      line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
-        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthTest: false })
-      );
-      scene3.add(line);
-    }
-
-    state.calloutViews.push({ group, line, anchor, i });
+  disposeViews(state.calloutViews);
+  state.calloutViews = buildCalloutViews({
+    specs: state.scene.steps[state.step].callouts,
+    index: state.index,
+    container: state.container,
+    lineParent: scene3,
   });
-}
-
-function rebuildLabelViews() {
-  for (const v of state.labelViews) {
-    v.group.parent?.remove(v.group);
-    v.line.parent?.remove(v.line);
-  }
-  state.labelViews = [];
-
-  (state.scene.steps[state.step].labels ?? []).forEach((spec, i) => {
-    const anchor = state.index.byPath.get(spec.anchor)?.obj;
-    if (!anchor) return;
-
-    // Matches JigLabel.Create: parented to the anchor's PARENT and positioned at
-    // the anchor's own local position plus the offset, so the offset is a vector
-    // in the parent's local space.
-    const group = new THREE.Group();
-    const sprite = labelSprite(spec.text || "(no text)");
-    group.add(sprite);
-    anchor.parent.add(group);
-    group.position.copy(anchor.position).add(new THREE.Vector3(...flipX(spec.offset ?? [0, 0, 0])));
-
-    // Sized in world units: a sprite inside a model scaled to 0.035 would
-    // otherwise be illegible.
-    sprite.scale.multiplyScalar(0.035 / (state.container.scale.x || 1));
-
-    const line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
-      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthTest: false })
-    );
-    scene3.add(line);
-
-    state.labelViews.push({ group, sprite, line, anchor, i });
-  });
-}
-
-const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
-function updateLabelView(v) {
-  v.group.getWorldPosition(tmpA);
-  v.anchor.getWorldPosition(tmpB);
-  const p = v.line.geometry.attributes.position;
-  p.setXYZ(0, tmpA.x, tmpA.y, tmpA.z);
-  p.setXYZ(1, tmpB.x, tmpB.y, tmpB.z);
-  p.needsUpdate = true;
-  const on = state.selected?.kind === "label" && state.selected.i === v.i;
-  v.line.material.color.set(on ? 0x6ea8fe : 0xffffff);
 }
 
 // -- selection and the gizmo ----------------------------------------------

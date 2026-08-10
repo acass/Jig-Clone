@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jig</title>
+<style>
+  :root {
+    --bg: #16171a; --panel: rgba(24,26,31,.86); --line: #2e3138;
+    --text: #e6e7ea; --dim: #8b8f98; --accent: #6ea8fe; --warn: #e0a34a; --bad: #e06a6a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); overflow: hidden;
+    font: 14px/1.45 ui-sans-serif, -apple-system, "SF Pro Text", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  canvas { display: block; touch-action: none; }
+
+  #viewport { position: fixed; inset: 0; }
+
+  .bar {
+    position: fixed; left: 0; right: 0; z-index: 2;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px max(12px, env(safe-area-inset-left));
+    background: var(--panel); backdrop-filter: blur(12px);
+  }
+  #top { top: 0; border-bottom: 1px solid var(--line); }
+  #bottom {
+    bottom: 0; border-top: 1px solid var(--line); flex-wrap: wrap;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  /* An embed drops the branding, the picker and the share button - but never the
+     step controls, or the reader is stuck on step 1 with no way forward. */
+  body.embed #top { display: none; }
+
+  h1 { font-size: 14px; font-weight: 600; margin: 0; white-space: nowrap; }
+  .spacer { flex: 1; }
+  #status { color: var(--dim); font-size: 12px; }
+  #status.bad { color: var(--bad); }
+
+  select, button {
+    font: inherit; color: var(--text); background: #2a2d34;
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer;
+  }
+  button:hover, select:hover { background: #343841; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: #10131a; border-color: var(--accent); font-weight: 600; }
+
+  #caption { flex: 1 1 240px; min-width: 0; }
+  #counter { color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  #dots { display: flex; gap: 6px; flex-wrap: wrap; }
+  #dots button {
+    width: 22px; height: 22px; padding: 0; border-radius: 50%;
+    font-size: 10px; color: var(--dim); line-height: 1;
+  }
+  #dots button.on { background: var(--accent); color: #10131a; border-color: var(--accent); }
+
+  #note { color: var(--warn); font-size: 12px; flex-basis: 100%; }
+  #note:empty { display: none; }
+
+  /* The share sheet is a plain dialog: no library, and Esc closes it for free. */
+  dialog {
+    background: #1e2025; color: var(--text); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px; width: min(520px, calc(100vw - 32px));
+  }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--dim); margin: 14px 0 6px; font-weight: 600; }
+  dialog h2:first-child { margin-top: 0; }
+  dialog input, dialog textarea {
+    width: 100%; font: 12px/1.4 ui-monospace, Menlo, monospace; color: var(--text);
+    background: #16181d; border: 1px solid var(--line); border-radius: 6px; padding: 7px;
+  }
+  dialog textarea { resize: vertical; min-height: 62px; }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "../editor/vendor/three.module.js" } }
+</script>
+</head>
+<body>
+
+<div id="viewport"></div>
+
+<div class="bar" id="top">
+  <h1 id="title">Jig</h1>
+  <select id="picker" aria-label="Choose a jig"></select>
+  <span class="spacer"></span>
+  <span id="status"></span>
+  <button id="share">Share</button>
+</div>
+
+<div class="bar" id="bottom">
+  <button id="prev" aria-label="Previous step">←</button>
+  <button id="next" class="primary" aria-label="Next step">→</button>
+  <span id="counter"></span>
+  <span id="caption"></span>
+  <span class="spacer"></span>
+  <div id="dots"></div>
+  <div id="note"></div>
+</div>
+
+<dialog id="shareDialog">
+  <h2>Link to this step</h2>
+  <input id="shareUrl" readonly>
+  <div class="row"><button id="copyUrl" class="primary">Copy link</button></div>
+
+  <h2>Embed on a page</h2>
+  <textarea id="shareEmbed" readonly></textarea>
+  <div class="row">
+    <button id="copyEmbed" class="primary">Copy embed code</button>
+    <span class="spacer"></span>
+    <button id="closeShare">Close</button>
+  </div>
+</dialog>
+
+<script type="module" src="./viewer.js"></script>
+</body>
+</html>

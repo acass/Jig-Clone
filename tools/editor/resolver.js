@@ -149,6 +149,58 @@ export function buildNodeIndex(root) {
   };
 }
 
+// -- visibility ------------------------------------------------------------
+
+/// The nodes a scene names explicitly, by any of their paths.
+///
+/// Mirrors JigPlayer's m_Authored, which is built from the keys of every resolved
+/// step. setVisibleDeep refuses to descend into these, so hiding a group never
+/// silently takes an authored part down with it.
+export function authoredNodes(resolvedSteps, index) {
+  const set = new Set();
+  for (const step of resolvedSteps) {
+    for (const path of step.keys()) {
+      const node = index.byPath.get(path);
+      if (node) set.add(node);
+    }
+  }
+  return set;
+}
+
+/// Shows or hides a part the way JigPlayer.SetVisible does: the node's own
+/// renderers, plus every child that is not a part in its own right.
+///
+/// The descent is what makes `visible: false` work on a multi-primitive mesh.
+/// glTFast keeps primitive 0 on the node and gives each extra primitive its own
+/// GameObject, and three.js splits the same mesh into child meshes, so touching
+/// only the node itself hides half the part and leaves the rest floating.
+///
+/// Operates on the {name, children, obj} proxy tree buildNodeIndex walks, and only
+/// ever writes `.visible` on leaf renderers - never on a group - so this cannot
+/// hide a subtree by accident.
+///
+/// ponytail: one divergence from Unity is left in. Unity toggles Renderer.enabled,
+/// which does not affect children; three's `.visible` culls the whole subtree. They
+/// differ only for an authored node parented *under a mesh node*, which no glTF
+/// exporter in this pipeline produces. Fix by splitting the mesh out of the group
+/// if a model ever hits it.
+export function setVisibleDeep(proxy, visible, authored) {
+  if (proxy.obj) {
+    // Stop at the objects that belong to child nodes: those are handled below, and
+    // only when the scene has not authored them separately.
+    const owned = new Set(proxy.children.map((c) => c.obj).filter(Boolean));
+    const walk = (o) => {
+      if (o.isMesh || o.isPoints || o.isLine) o.visible = visible;
+      for (const c of o.children ?? []) if (!owned.has(c)) walk(c);
+    };
+    walk(proxy.obj);
+  }
+
+  for (const child of proxy.children) {
+    if (!authored.has(child)) setVisibleDeep(child, visible, authored);
+  }
+}
+
 // -- serialisation ---------------------------------------------------------
 
 /// Serialises a scene the way the hand-written content is laid out: number arrays

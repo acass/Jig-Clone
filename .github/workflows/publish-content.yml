@@ -1,16 +1,19 @@
 # Publishes ./content to GitHub Pages so the headset can fetch Jigs from anywhere,
-# not just the LAN. Only content/ is published - the Unity project stays private to
-# the repo and is not served.
+# not just the LAN, plus the web viewer so a Jig can be opened by link with no app.
+# The Unity project stays private to the repo and is not served.
 #
-# The first run enables Pages itself (see `enablement` below). Content then lives at:
-#   https://<owner>.github.io/<repo>/index.json
-# which is what JigLoader.manifestUrl points at.
+#   https://<owner>.github.io/<repo>/index.json     <- JigLoader.manifestUrl
+#   https://<owner>.github.io/<repo>/viewer/        <- the shareable viewer
 name: publish-content
 
 on:
   push:
     branches: [main]
-    paths: ["content/**", ".github/workflows/publish-content.yml"]
+    paths:
+      - "content/**"
+      - "tools/viewer/**"
+      - "tools/editor/**"
+      - ".github/workflows/publish-content.yml"
   workflow_dispatch:
 
 permissions:
@@ -43,6 +46,21 @@ jobs:
           node tools/validate.mjs
           node tools/test_format.mjs
 
+      # content/ stays at the root so index.json keeps the URL baked into the APK.
+      # The viewer sits one level below it, which is the same shape serve.py mounts
+      # locally, so "../index.json" resolves in both places without a build step.
+      #
+      # Only the shared modules of the editor go up - never editor.js or its page.
+      # The editor saves through a loopback-only PUT that does not exist on Pages,
+      # so publishing it would only offer an authoring UI that cannot author.
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/viewer _site/editor/vendor
+          cp -R content/. _site/
+          cp -R tools/viewer/. _site/viewer/
+          cp tools/editor/resolver.js tools/editor/glb.js tools/editor/views.js _site/editor/
+          cp -R tools/editor/vendor/. _site/editor/vendor/
+
       # Pages must already be enabled with build_type=workflow. The `enablement`
       # option cannot do it: creating a Pages site needs admin, which the workflow's
       # GITHUB_TOKEN does not have ("Resource not accessible by integration").
@@ -50,6 +68,6 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: content
+          path: _site
       - id: deploy
         uses: actions/deploy-pages@v4

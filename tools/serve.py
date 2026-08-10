@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Dev server for JigClone content.
 
-GET  serves ./content on 0.0.0.0 so the headset can fetch it, and the authoring
-     editor at /editor/.
+GET  serves ./content on 0.0.0.0 so the headset can fetch it, the authoring editor
+     at /editor/, and the web viewer at /viewer/.
 PUT  writes into ./content so the editor can save without a file shuffle.
 
 Reads are open to the LAN because the headset needs them. Writes are not: a PUT
@@ -18,7 +18,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = (ROOT / "content").resolve()
-EDITOR = (ROOT / "tools" / "editor").resolve()
+
+# Mounted beside the content, one level below it, which is the same shape the Pages
+# publish step builds - so the viewer's "../index.json" is correct in both places.
+MOUNTS = {
+    "/editor": (ROOT / "tools" / "editor").resolve(),
+    "/viewer": (ROOT / "tools" / "viewer").resolve(),
+}
 
 WRITABLE_SUFFIXES = {".json", ".glb"}
 MAX_UPLOAD = 256 * 1024 * 1024
@@ -32,16 +38,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     # -- GET ---------------------------------------------------------------
 
     def translate_path(self, path):
-        """Content at /, the editor at /editor/. Two trees, one origin, so the
+        """Content at /, the tools trees at their mount points. One origin, so the
         editor's PUT is same-origin and there is no CORS to configure."""
         url = path.split("?", 1)[0].split("#", 1)[0]
-        if url == "/editor" or url.startswith("/editor/"):
-            saved = self.directory
-            self.directory = str(EDITOR)
-            try:
-                return super().translate_path(path[len("/editor") :] or "/")
-            finally:
-                self.directory = saved
+        for mount, directory in MOUNTS.items():
+            if url == mount or url.startswith(mount + "/"):
+                saved = self.directory
+                self.directory = str(directory)
+                try:
+                    return super().translate_path(path[len(mount) :] or "/")
+                finally:
+                    self.directory = saved
         return super().translate_path(path)
 
     def end_headers(self):
@@ -104,8 +111,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return None
 
         # resolve() plus relative_to is what catches a symlink pointing out of the
-        # tree, which a component filter cannot see. Called unbound so the
-        # /editor/ mapping above cannot be used to write into the tools tree.
+        # tree, which a component filter cannot see. Called unbound so the mount
+        # mapping above cannot be used to write into a tools tree.
         raw = http.server.SimpleHTTPRequestHandler.translate_path(self, urlpath)
         target = Path(raw).resolve()
 
